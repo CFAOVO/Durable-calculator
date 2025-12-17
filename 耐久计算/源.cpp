@@ -7,7 +7,7 @@
 
 using namespace std;
 
-// 跨平台清屏函数
+// 清屏函数
 void clearScreen() {
 #ifdef _WIN32
     system("cls");
@@ -45,7 +45,7 @@ double fieldRepair(double currentMaxDurability, double currentDurability, double
     // ③ 旧化系数
     double agingCoefficient = log10(currentMaxDurability / initialMax);
 
-    // ④ 折减系数 (使用头盔固有的维修损耗)
+    // ④ 折减系数 (使用装备固有的维修损耗)
     double reductionCoefficient = repairLoss - agingCoefficient;
 
     // ⑤ 维修后上限
@@ -139,10 +139,52 @@ vector<EquipmentData> initializeHelmets() {
     return helmets;
 }
 
-// 初始化护甲数据（预留接口，目前为空）
+// 初始化护甲数据
 vector<EquipmentData> initializeArmors() {
     vector<EquipmentData> armors;
-    // 预留护甲数据接口，未来可以添加护甲数据
+
+    EquipmentData armor;
+
+    // 重型突击背心
+    armor.name = "重型突击背心";
+    armor.type = ARMOR;
+    armor.initialMax = 125.0;
+    armor.minSellable = 87;
+    armor.repairLoss = 0.10;
+    armor.kitEfficiencies = { 0.15, 0.25, 1.25, 1.91 };
+    armor.kitNames = { "自制维修包", "标准维修包", "精密维修包", "高级维修包" };
+    armors.push_back(armor);
+
+    // FS复合防弹衣
+    armor.name = "FS复合防弹衣";
+    armor.type = ARMOR;
+    armor.initialMax = 105.0;
+    armor.minSellable = 73;
+    armor.repairLoss = 0.09;
+    armor.kitEfficiencies = { 0.18, 0.29, 0.82, 1.23 };
+    armor.kitNames = { "自制维修包", "标准维修包", "精密维修包", "高级维修包" };
+    armors.push_back(armor);
+
+    // HVK-2防弹衣
+    armor.name = "HVK-2防弹衣";
+    armor.type = ARMOR;
+    armor.initialMax = 115.0;
+    armor.minSellable = 80;
+    armor.repairLoss = 0.14;
+    armor.kitEfficiencies = { 0.16, 0.27, 1.45, 2.20 };
+    armor.kitNames = { "自制维修包", "标准维修包", "精密维修包", "高级维修包" };
+    armors.push_back(armor);
+
+    // 精英防弹背心
+    armor.name = "精英防弹背心";
+    armor.type = ARMOR;
+    armor.initialMax = 95.0;
+    armor.minSellable = 66;
+    armor.repairLoss = 0.12;
+    armor.kitEfficiencies = { 0.19, 0.32, 1.19, 1.82 };
+    armor.kitNames = { "自制维修包", "标准维修包", "精密维修包", "高级维修包" };
+    armors.push_back(armor);
+
     return armors;
 }
 
@@ -204,7 +246,9 @@ void performRepairCalculation(const EquipmentData& equipment) {
 
     // 显示装备信息
     cout << "=== " << equipment.name << " 维修计算结果 ===" << endl;
-    cout << "初始耐久上限: " << equipment.initialMax;
+    string typeStr = (equipment.type == HELMET) ? "头盔" : "护甲";
+    cout << "装备类型: " << typeStr;
+    cout << " | 初始耐久上限: " << equipment.initialMax;
     cout << " | 最低可出售耐久: " << equipment.minSellable;
     cout << " | 维修损耗: " << equipment.repairLoss << endl;
     cout << "当前耐久上限: " << currentMax;
@@ -217,7 +261,7 @@ void performRepairCalculation(const EquipmentData& equipment) {
 
     cout << "耐久损失: " << durabilityLoss << " (" << lossPercentage << "%)";
     cout << " | 旧化系数: " << agingCoefficient << endl;
-    cout << string(60, '-') << endl;
+    cout << string(70, '-') << endl;
 
     // 局内维修
     double fieldResult = fieldRepair(currentMax, currentDura, equipment.initialMax, equipment.repairLoss);
@@ -258,7 +302,7 @@ void performRepairCalculation(const EquipmentData& equipment) {
     // 判断建议
     cout << "\n--- 维修建议 ---" << endl;
     double fieldLoss = currentMax - fieldResult;
-    if (fieldLoss < 0.5) {
+    if (fieldLoss < 1.0) {
         cout << "局内维修耐久损失很小(" << fieldLoss << ")，建议使用局内维修节省维修包。" << endl;
     }
     else {
@@ -267,28 +311,34 @@ void performRepairCalculation(const EquipmentData& equipment) {
 
     // 显示最佳维修包选择
     bool anyUsable = false;
+    vector<string> usableKits;
     for (size_t i = 0; i < equipment.kitEfficiencies.size(); i++) {
         int baseResult = baseRepair(currentMax, currentDura, equipment.initialMax, equipment.kitEfficiencies[i]);
         if (baseResult >= equipment.minSellable) {
-            if (!anyUsable) {
-                cout << "可使用的维修包: ";
-                anyUsable = true;
-            }
-            else {
-                cout << ", ";
-            }
-            cout << equipment.kitNames[i];
+            usableKits.push_back(equipment.kitNames[i]);
+            anyUsable = true;
         }
     }
 
-    if (!anyUsable) {
-        cout << "当前没有任何维修包能使装备达到可出售状态。" << endl;
+    if (anyUsable) {
+        cout << "可使用的维修包: ";
+        for (size_t i = 0; i < usableKits.size(); i++) {
+            cout << usableKits[i];
+            if (i < usableKits.size() - 1) {
+                cout << ", ";
+            }
+        }
+
+        // 推荐最经济的维修包
+        if (usableKits.size() >= 2) {
+            cout << "\n推荐: " << usableKits[0] << " (最经济)" << endl;
+        }
     }
     else {
-        cout << endl;
+        cout << "当前没有任何维修包能使装备达到可出售状态。" << endl;
     }
 
-    cout << string(60, '=') << endl;
+    cout << string(70, '=') << endl;
     cout << "\n按任意键返回菜单..." << endl;
     cin.ignore();
     cin.get();
@@ -304,8 +354,8 @@ int main() {
 
         cout << "=== 装备维修计算器 ===" << endl;
         cout << "请选择要计算的装备类型：" << endl;
-        cout << "1. 头盔维修计算" << endl;
-        cout << "2. 护甲维修计算" << endl;
+        cout << "1. 头盔维修计算 (" << helmets.size() << "种头盔)" << endl;
+        cout << "2. 护甲维修计算 (" << armors.size() << "种护甲)" << endl;
         cout << "0. 退出程序" << endl;
 
         int typeChoice;
@@ -340,33 +390,22 @@ int main() {
         }
         else if (typeChoice == 2) {
             // 护甲计算
-            clearScreen();
+            while (true) {
+                int armorChoice = displayEquipmentMenu(armors, "护甲");
 
-            if (armors.empty()) {
-                cout << "=== 护甲维修计算 ===" << endl;
-                cout << "\n抱歉，护甲数据暂未添加，敬请期待！" << endl;
-                cout << "\n按任意键返回主菜单..." << endl;
-                cin.ignore();
-                cin.get();
-            }
-            else {
-                while (true) {
-                    int armorChoice = displayEquipmentMenu(armors, "护甲");
-
-                    if (armorChoice == 0) {
-                        break; // 返回上级菜单
-                    }
-
-                    if (armorChoice < 1 || armorChoice >(int)armors.size()) {
-                        cout << "错误：选择编号无效！按任意键继续..." << endl;
-                        cin.ignore();
-                        cin.get();
-                        continue;
-                    }
-
-                    // 执行维修计算
-                    performRepairCalculation(armors[armorChoice - 1]);
+                if (armorChoice == 0) {
+                    break; // 返回上级菜单
                 }
+
+                if (armorChoice < 1 || armorChoice >(int)armors.size()) {
+                    cout << "错误：选择编号无效！按任意键继续..." << endl;
+                    cin.ignore();
+                    cin.get();
+                    continue;
+                }
+
+                // 执行维修计算
+                performRepairCalculation(armors[armorChoice - 1]);
             }
         }
         else {
